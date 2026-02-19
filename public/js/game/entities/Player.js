@@ -12,7 +12,7 @@ export class Player {
 
         this.level = 1;
         this.xp = 0;
-        this.xpNext = 40;
+        this.xpNext = (CFG.leveling?.baseXp ?? 40);
 
         this.dmg = 10;
         this.fireRate = 4.0; // tiros/seg
@@ -73,7 +73,7 @@ export class Player {
         while (this.xp >= this.xpNext) {
             this.xp -= this.xpNext;
             this.level++;
-            this.xpNext = Math.floor(this.xpNext * 1.22);
+            this.xpNext = Math.floor(this.xpNext * (CFG.leveling?.growth ?? 1.22));
             game.queueLevelUp();
         }
     }

@@ -1,5 +1,5 @@
 import { PixiRenderer } from "./game/renderer/PixiRenderer.js";
-import { createHud } from "./game/ui/hud.js";
+import createHud from "./game/ui/hud.js";
 import { Game } from "./game/Game.js";
 
 const canvas = document.getElementById("gameCanvas");

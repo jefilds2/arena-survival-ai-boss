@@ -6,8 +6,8 @@ export class PixiRenderer {
         this.app = null;
         this.stage = null;
 
-        this.floor = null; // tiling floor (screen space)
-        this.world = null; // world space container (camera)
+        this.floor = null;
+        this.world = null;
         this.fx = null;
 
         this._player = null;
@@ -17,19 +17,17 @@ export class PixiRenderer {
         this._bullets = new Map();
         this._orbs = new Map();
 
-        // escalas (serão recalculadas por altura alvo quando os sprites carregarem)
-        this.SCALE_PLAYER = 0.5;
-        this.SCALE_ENEMY = 1.0;
-        this.SCALE_BOSS = 2.0;
+        // escalas (ajuste fino depois)
+        this.SCALE_PLAYER = 0.8;
+        this.SCALE_ENEMY = 2.5;
+        this.SCALE_BOSS = 3;
 
-        // altura alvo (em “pixels do mundo”)
-        this.TARGET_H_ENEMY = 64; // vampiro comum
-        this.TARGET_H_PLAYER = 64; // player mesmo tamanho do vampiro
-        this.TARGET_H_BOSS = 128; // boss maior
+        // resolve assets a partir do arquivo atual
+        this._root = new URL("../../../", import.meta.url);
 
         this._anims = {
-            player: null,  // { idle:[...], walk:[...], ... , _meta:{frameH,frameW} }
-            enemy4: null,  // { idle:{down:[...],...}, walk:{...}, ... , _meta:{frameH,frameW,framesPerRow,rows} }
+            player: null,
+            enemy4: null,
             boss4: null,
         };
     }
@@ -42,7 +40,7 @@ export class PixiRenderer {
         if (!PIXI) throw new Error("PIXI não carregou. Confere os CDNs no index.html.");
         this.PIXI = PIXI;
 
-        // ✅ defaults p/ pixel art (Pixi v8)
+        // pixel art defaults (Pixi v8)
         if (PIXI.settings) {
             if (PIXI.SCALE_MODES) PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
             if ("ROUND_PIXELS" in PIXI.settings) PIXI.settings.ROUND_PIXELS = true;
@@ -51,50 +49,50 @@ export class PixiRenderer {
         this.app = new PIXI.Application();
         await this.app.init({
             canvas: this.canvas,
-            resizeTo: this.canvas.parentElement ?? window,
+            resizeTo: window,
             antialias: false,
             backgroundAlpha: 0,
             autoDensity: true,
             resolution: Math.max(1, Math.min(2, window.devicePixelRatio || 1)),
         });
 
-        // CSS pixelated (sem quebrar se algo vier undefined)
-        try {
-            const view = this.app.canvas || this.canvas;
-            if (view && view.style) view.style.imageRendering = "pixelated";
-        } catch { }
+        // garante pixelated sem quebrar
+        const view = this.app.canvas || this.canvas;
+        if (view && view.style) view.style.imageRendering = "pixelated";
 
         this.stage = this.app.stage;
         this.stage.sortableChildren = true;
 
-        // containers
+        // chão: tenta floor.png, fallback procedural
+        const floorTex = await this._loadFloorTexture([
+            "assets/tiles/floor.png",
+            "assets/tiles/Floor.png",
+        ]);
+        this.floor = new PIXI.TilingSprite(floorTex, this.app.screen.width, this.app.screen.height);
+        this.floor.zIndex = 0;
+        this.stage.addChild(this.floor);
+
+        // mundo
         this.world = new PIXI.Container();
         this.world.sortableChildren = true;
         this.world.zIndex = 1;
         this.stage.addChild(this.world);
 
+        // fx
         this.fx = new PIXI.Container();
         this.fx.sortableChildren = true;
         this.fx.zIndex = 9999;
         this.world.addChild(this.fx);
 
-        // assets (player + vampiros + boss)
+        // assets
         await this._loadAllAnimations();
 
-        // recalcula escala por altura (player = vampiro, boss maior)
-        this._recalcScalesByMeta();
-
-        // floor (tenta tile real, senão procedural)
-        const floorTex = await this._loadFloorTextureOrFallback();
-        this.floor = this._makeTilingSprite(floorTex, this.app.screen.width, this.app.screen.height);
-        this.floor.zIndex = 0;
-        this.stage.addChildAt(this.floor, 0);
-
-        // mantém floor cobrindo sempre
+        // garante floor sempre cobrindo
         this.app.ticker.add(() => {
-            if (!this.floor) return;
-            this.floor.width = this.app.screen.width;
-            this.floor.height = this.app.screen.height;
+            if (this.floor) {
+                this.floor.width = this.app.screen.width;
+                this.floor.height = this.app.screen.height;
+            }
         });
 
         window.__pixi = this.app;
@@ -107,76 +105,77 @@ export class PixiRenderer {
         if (!state || !state.player) return;
 
         // floor fullscreen
-        if (this.floor) {
-            this.floor.width = this.app.screen.width;
-            this.floor.height = this.app.screen.height;
-        }
+        this.floor.width = this.app.screen.width;
+        this.floor.height = this.app.screen.height;
 
-        // camera segue player (mundo “infinito”)
+        // camera
         const camX = state.camera?.x ?? state.player.x ?? 0;
         const camY = state.camera?.y ?? state.player.y ?? 0;
 
         this.world.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
         this.world.pivot.set(camX, camY);
 
-        // tile anda com a câmera
-        if (this.floor) this.floor.tilePosition.set(-camX, -camY);
+        // tile anda
+        this.floor.tilePosition.set(-camX, -camY);
 
-        // PLAYER
+        // player
         this._player = this._upsertPlayer(this._player, state.player);
 
-        // BOSS
+        // boss
         if (state.boss) {
-            this._boss = this._upsertDirActor(this._boss, state.boss, this._anims.boss4, this.SCALE_BOSS, "boss");
+            this._boss = this._upsertDirActor(
+                this._boss,
+                state.boss,
+                this._anims.boss4,
+                this.SCALE_BOSS,
+                "boss"
+            );
         } else if (this._boss) {
             this._boss.destroy?.();
             this._boss = null;
         }
 
-        // ENEMIES
+        // enemies
         this._syncListSprites(this._enemies, state.enemies ?? [], () => {
             return this._createDirActorSprite(this._anims.enemy4, this.SCALE_ENEMY, "enemy");
         });
 
-        // BULLETS
+        // bullets
         this._syncListSprites(this._bullets, state.bullets ?? [], () => {
             const g = new this.PIXI.Graphics();
-            g.beginFill(0xffffff);
-            g.drawCircle(0, 0, 3);
-            g.endFill();
+            g.circle(0, 0, 3).fill(0xffffff);
             g.zIndex = 5000;
             this.world.addChild(g);
             return g;
         });
 
-        // ORBS (xp)
+        // orbs
         this._syncListSprites(this._orbs, state.orbs ?? [], () => {
             const g = new this.PIXI.Graphics();
-            g.beginFill(0x2cff7a);
-            g.drawCircle(0, 0, 6);
-            g.endFill();
+            g.circle(0, 0, 6).fill(0x2cff7a);
             g.zIndex = 100;
             this.world.addChild(g);
             return g;
         });
 
-        // update enemies positions + anim
+        // atualiza enemies
         for (const [id, sp] of this._enemies) {
             const e = this._lastListFind(state.enemies, id);
             if (!e) continue;
+
             this._updateDirActor(sp, e, this._anims.enemy4, this.SCALE_ENEMY);
             sp.position.set(e.x, e.y);
             sp.zIndex = sp.y;
         }
 
-        // bullets positions
+        // bullets
         for (const [id, sp] of this._bullets) {
             const b = this._lastListFind(state.bullets, id);
             if (!b) continue;
             sp.position.set(b.x, b.y);
         }
 
-        // orbs positions
+        // orbs
         for (const [id, sp] of this._orbs) {
             const o = this._lastListFind(state.orbs, id);
             if (!o) continue;
@@ -190,9 +189,7 @@ export class PixiRenderer {
     // ------------------------
     hitFx(x, y) {
         const p = new this.PIXI.Graphics();
-        p.beginFill(0xaa0000);
-        p.drawCircle(0, 0, 8);
-        p.endFill();
+        p.circle(0, 0, 8).fill(0xaa0000);
         p.position.set(x, y);
         p.alpha = 0.9;
         p.zIndex = y + 1;
@@ -233,7 +230,7 @@ export class PixiRenderer {
     }
 
     // ============================================================
-    // PLAYER (strip 1 row + flip estável)
+    // PLAYER (strip 1 row + flip)
     // ============================================================
     _upsertPlayer(current, data) {
         const PIXI = this.PIXI;
@@ -247,9 +244,7 @@ export class PixiRenderer {
         if (!anims) {
             if (!current) {
                 const g = new PIXI.Graphics();
-                g.beginFill(0xffffff);
-                g.drawCircle(0, 0, 10);
-                g.endFill();
+                g.circle(0, 0, 10).fill(0xffffff);
                 this.world.addChild(g);
                 current = g;
             }
@@ -293,7 +288,6 @@ export class PixiRenderer {
         current._lastFlip = flip;
 
         this._setScale(current, this.SCALE_PLAYER * flip, this.SCALE_PLAYER);
-
         return current;
     }
 
@@ -317,21 +311,17 @@ export class PixiRenderer {
     }
 
     // ============================================================
-    // ENEMY/BOSS (4-dir sheets)
+    // ENEMY/BOSS (4-dir rows)
     // ============================================================
     _createDirActorSprite(anims4, scale, label) {
         const PIXI = this.PIXI;
 
         if (!anims4) {
             const g = new PIXI.Graphics();
-            g.beginFill(0x8aa8ff);
-            g.drawRoundedRect(-12, -12, 24, 24, 6);
-            g.endFill();
+            g.roundRect(-12, -12, 24, 24, 6).fill(0x8aa8ff);
             g._dir = "down";
             g._action = "idle";
             g._label = label;
-            g._px = null;
-            g._py = null;
             this._setScale(g, scale, scale);
             this.world.addChild(g);
             return g;
@@ -346,10 +336,6 @@ export class PixiRenderer {
         sp._dir = "down";
         sp._action = "idle";
         sp._label = label;
-
-        // pra direção baseada em movimento sem depender de vx/vy
-        sp._px = null;
-        sp._py = null;
 
         this._setScale(sp, scale, scale);
         this.world.addChild(sp);
@@ -370,23 +356,13 @@ export class PixiRenderer {
     }
 
     _updateDirActor(sp, data, anims4, scale) {
-        // placeholder
         if (!anims4 || !this._isAnimatedSprite(sp)) {
             this._setScale(sp, scale, scale);
             return;
         }
 
-        // direção por delta de posição (robusto mesmo se Enemy não tiver vx/vy)
-        const px = (sp._px ?? data.x);
-        const py = (sp._py ?? data.y);
-        const dxPos = data.x - px;
-        const dyPos = data.y - py;
-        sp._px = data.x;
-        sp._py = data.y;
-
-        const vx = Number.isFinite(data.vx) ? Number(data.vx) : dxPos;
-        const vy = Number.isFinite(data.vy) ? Number(data.vy) : dyPos;
-
+        const vx = Number(data.vx ?? 0);
+        const vy = Number(data.vy ?? 0);
         const moving = Math.abs(vx) + Math.abs(vy) > 0.02;
 
         let action = "idle";
@@ -396,8 +372,10 @@ export class PixiRenderer {
 
         let dir = sp._dir || "down";
 
-        const useX = Number.isFinite(data.dirX) ? Number(data.dirX) : vx;
-        const useY = Number.isFinite(data.dirY) ? Number(data.dirY) : vy;
+        const dx = Number(data.dirX ?? 0);
+        const dy = Number(data.dirY ?? 0);
+        const useX = Math.abs(dx) > 0.1 ? dx : vx;
+        const useY = Math.abs(dy) > 0.1 ? dy : vy;
 
         if (Math.abs(useX) + Math.abs(useY) > 0.05) {
             if (Math.abs(useX) > Math.abs(useY)) dir = useX >= 0 ? "right" : "left";
@@ -471,115 +449,60 @@ export class PixiRenderer {
     // LOADING
     // ============================================================
     async _loadAllAnimations() {
-        // player
-        this._anims.player = await this._loadPlayerSet([
-            "/assets/player/",
-            "assets/player/",
-        ]);
-
-        // vampiros comuns
-        this._anims.enemy4 = await this._loadVampire4DirSet([
-            "/assets/vampires/",
-            "assets/vampires/",
-        ]);
-
-        // boss (aceita as duas pastas)
+        this._anims.player = await this._loadPlayerSet(["assets/player/"]);
+        this._anims.enemy4 = await this._loadVampire4DirSet(["assets/vampires/"]);
         this._anims.boss4 = await this._loadVampire4DirSet([
-            "/assets/vampire-boss/",
-            "/assets/boss-vampire/",
-            "assets/vampire-boss/",
             "assets/boss-vampire/",
         ]);
     }
 
-    _recalcScalesByMeta() {
-        const pH = this._anims.player?._meta?.frameH;
-        const eH = this._anims.enemy4?._meta?.frameH;
-        const bH = this._anims.boss4?._meta?.frameH;
-
-        if (Number.isFinite(pH) && pH > 0) this.SCALE_PLAYER = this.TARGET_H_PLAYER / pH;
-        if (Number.isFinite(eH) && eH > 0) this.SCALE_ENEMY = this.TARGET_H_ENEMY / eH;
-        if (Number.isFinite(bH) && bH > 0) this.SCALE_BOSS = this.TARGET_H_BOSS / bH;
-
-        // fallback mínimo (evita 0)
-        this.SCALE_PLAYER = this.SCALE_PLAYER || 0.5;
-        this.SCALE_ENEMY = this.SCALE_ENEMY || 1.0;
-        this.SCALE_BOSS = this.SCALE_BOSS || 2.0;
-    }
-
     async _loadPlayerSet(baseCandidates) {
-        // tenta vários nomes (case + sinônimos)
         const files = {
-            idle: ["idle.png", "Idle.png", "IDLE.png"],
-            walk: ["walk.png", "Walk.png", "walking.png", "Walking.png"],
-            run: ["run.png", "Run.png"],
-            attack: ["attack.png", "Attack.png", "atk.png", "Atk.png"],
-            hurt: ["hurt.png", "Hurt.png", "hit.png", "Hit.png", "damage.png", "Damage.png"],
-            death: ["death.png", "Death.png", "die.png", "Die.png"],
+            idle: "idle.png",
+            walk: "walk.png",
+            run: "run.png",
+            attack: "attack.png",
+            hurt: "hurt.png",
+            death: "death.png",
         };
 
         const out = {};
-        let meta = null;
-
-        for (const [k, names] of Object.entries(files)) {
+        for (const [k, file] of Object.entries(files)) {
             out[k] = null;
-
             for (const base of baseCandidates) {
-                for (const name of names) {
-                    const url = this._join(base, name);
-                    try {
-                        const pack = await this._loadStripTexturesSingleRow(url);
-                        out[k] = pack.textures;
-                        meta = meta || pack.meta;
-                        break;
-                    } catch (_) { }
-                }
-                if (out[k]) break;
+                const url = this._u(base + file);
+                try {
+                    out[k] = await this._loadStripTexturesSingleRow(url);
+                    break;
+                } catch (_) { }
             }
         }
 
         if (!out.idle) return null;
-
-        // fallback actions
         if (!out.walk) out.walk = out.idle;
         if (!out.run) out.run = out.walk;
         if (!out.attack) out.attack = out.walk;
         if (!out.hurt) out.hurt = out.idle;
         if (!out.death) out.death = out.hurt;
 
-        out._meta = meta || { frameH: 128, frameW: 128 };
         return out;
     }
 
     async _loadVampire4DirSet(baseCandidates) {
         const files = {
-            idle: ["idle.png", "Idle.png"],
-            walk: ["walk.png", "Walk.png", "walking.png", "Walking.png"],
-            attack: ["attack.png", "Attack.png"],
-            hurt: ["hurt.png", "Hurt.png", "hit.png", "Hit.png"],
-            death: ["death.png", "Death.png", "die.png", "Die.png"],
+            idle: "idle.png",
+            walk: "walk.png",
+            attack: "attack.png",
+            hurt: "hurt.png",
+            death: "death.png",
         };
 
         for (const base of baseCandidates) {
             try {
                 const set = {};
-                let meta = null;
-
-                for (const [k, names] of Object.entries(files)) {
-                    let loaded = null;
-
-                    for (const name of names) {
-                        const url = this._join(base, name);
-                        try {
-                            const pack = await this._loadSheet4DirAuto(url, { rows: 4 });
-                            loaded = pack.textures4;
-                            meta = meta || pack.meta;
-                            break;
-                        } catch (_) { }
-                    }
-
-                    if (!loaded) throw new Error(`missing ${k} in ${base}`);
-                    set[k] = loaded;
+                for (const [k, file] of Object.entries(files)) {
+                    const url = this._u(base + file);
+                    set[k] = await this._loadSheet4DirAuto(url, { rows: 4, prefer: [8, 6, 4] });
                 }
 
                 if (!set.walk) set.walk = set.idle;
@@ -587,7 +510,6 @@ export class PixiRenderer {
                 if (!set.hurt) set.hurt = set.idle;
                 if (!set.death) set.death = set.hurt;
 
-                set._meta = meta || { frameH: 64, frameW: 48, framesPerRow: 8, rows: 4 };
                 return set;
             } catch (_) { }
         }
@@ -595,19 +517,16 @@ export class PixiRenderer {
         return null;
     }
 
-    _join(base, file) {
-        if (!base.endsWith("/")) base += "/";
-        // base pode ser "/assets/.." ou "assets/.."
-        const b = base.startsWith("/") ? base : `/${base}`;
-        return `${b}${file}`.replaceAll("//", "/");
+    _u(rel) {
+        return new URL(rel, this._root).href;
     }
 
     async _loadStripTexturesSingleRow(url) {
         const img = await this._loadImage(url);
 
-        // regra: frames quadrados (w = h) — funciona pro seu player
-        const fh = img.height;
+        // player: frames quadrados, largura = altura
         const fw = img.height;
+        const fh = img.height;
         const frames = Math.max(1, Math.floor(img.width / fw));
 
         const out = [];
@@ -626,23 +545,129 @@ export class PixiRenderer {
             out.push(t);
         }
 
-        return { textures: out, meta: { frameW: fw, frameH: fh, framesPerRow: frames, rows: 1 } };
+        return out;
     }
 
-    async _loadSheet4DirAuto(url, { rows = 4 } = {}) {
+    // --------- AUTO GRID (corrige half-body/flicker) ----------
+    async _loadSheet4DirAuto(url, { rows = 4, prefer = [8, 6, 4] } = {}) {
         const img = await this._loadImage(url);
 
-        const frameH = Math.floor(img.height / rows);
-        if (frameH <= 0) throw new Error(`frameH inválido em ${url}`);
+        const H = img.height;
+        const W = img.width;
 
-        // tenta deduzir frames por linha e frameW (3..12 frames)
-        const guess = this._guessFramesPerRow(img.width, frameH);
-        const framesPerRow = guess.framesPerRow;
-        const frameW = guess.frameW;
+        const frameH = Math.floor(H / rows) || H;
+        const best = this._inferFramesPerRow(img, { rows, frameH, prefer });
 
-        const dirs = ["down", "left", "right", "up"]; // ordem mais comum em packs 4-dir
+        // debug útil (pode comentar depois)
+        // console.info("[sheet]", url.split("/").pop(), { W, H, ...best });
 
+        return this._sliceSheet4Dir(img, {
+            rows,
+            framesPerRow: best.framesPerRow,
+            frameW: best.frameW,
+            frameH: best.frameH,
+        });
+    }
+
+    _inferFramesPerRow(img, { rows, frameH, prefer }) {
+        const W = img.width;
+        const H = img.height;
+
+        const candidates = [];
+        for (let n = 3; n <= 16; n++) {
+            if (W % n !== 0) continue;
+            const fw = W / n;
+            const fh = frameH;
+
+            // limites plausíveis p/ pixel art
+            if (fw < 16 || fw > 512) continue;
+
+            const ratio = fw / fh;
+            if (ratio < 0.35 || ratio > 1.75) continue;
+
+            let score = 0;
+
+            // preferências comuns
+            const prefIdx = prefer.indexOf(n);
+            if (prefIdx >= 0) score += (prefer.length - prefIdx) * 2;
+
+            // múltiplos de 8/16 costumam ser sprite-friendly
+            if (fw % 8 === 0) score += 1;
+            if (fh % 8 === 0) score += 1;
+
+            // heurística por “clipping” em alguns frames
+            score += this._scoreCandidateByAlpha(img, { fw, fh, framesPerRow: n, rows });
+
+            candidates.push({ framesPerRow: n, frameW: fw, frameH: fh, score });
+        }
+
+        // fallback seguro
+        if (!candidates.length) {
+            const n = 8;
+            return { framesPerRow: n, frameW: Math.floor(W / n), frameH };
+        }
+
+        candidates.sort((a, b) => b.score - a.score);
+        return candidates[0];
+    }
+
+    _scoreCandidateByAlpha(img, { fw, fh, framesPerRow, rows }) {
+        // amostra poucos frames da primeira linha
+        const sample = [0, Math.floor(framesPerRow / 2), Math.max(0, framesPerRow - 1)];
+        const c = document.createElement("canvas");
+        c.width = fw;
+        c.height = fh;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+
+        let score = 0;
+
+        for (const i of sample) {
+            ctx.clearRect(0, 0, fw, fh);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, i * fw, 0 * fh, fw, fh, 0, 0, fw, fh);
+
+            const data = ctx.getImageData(0, 0, fw, fh).data;
+
+            let minX = fw, minY = fh, maxX = -1, maxY = -1;
+            const thr = 10;
+
+            for (let y = 0; y < fh; y++) {
+                for (let x = 0; x < fw; x++) {
+                    const a = data[(y * fw + x) * 4 + 3];
+                    if (a > thr) {
+                        if (x < minX) minX = x;
+                        if (y < minY) minY = y;
+                        if (x > maxX) maxX = x;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            // frame vazio? penaliza
+            if (maxX < 0 || maxY < 0) {
+                score -= 1.5;
+                continue;
+            }
+
+            const usedW = (maxX - minX + 1) / fw;
+
+            // se encosta demais nas bordas, provável que fw esteja pequeno (cortando metade)
+            if (minX <= 0 || maxX >= fw - 1) score -= 2.0;
+
+            // se ocupa muito pouco, fw pode estar grande demais
+            if (usedW < 0.25) score -= 1.0;
+
+            // zona boa (nem clipado, nem muito “vazio”)
+            if (usedW >= 0.35 && usedW <= 0.95) score += 1.0;
+        }
+
+        return score;
+    }
+
+    _sliceSheet4Dir(img, { rows = 4, framesPerRow = 8, frameW, frameH }) {
+        const dirs = ["down", "up", "right", "left"]; // row0..3
         const out = {};
+
         for (let r = 0; r < rows; r++) {
             const dir = dirs[r] || `row${r}`;
             out[dir] = [];
@@ -658,8 +683,14 @@ export class PixiRenderer {
 
                 ctx.drawImage(
                     img,
-                    i * frameW, r * frameH, frameW, frameH,
-                    0, 0, frameW, frameH
+                    i * frameW,
+                    r * frameH,
+                    frameW,
+                    frameH,
+                    0,
+                    0,
+                    frameW,
+                    frameH
                 );
 
                 const t = this.PIXI.Texture.from(c);
@@ -668,55 +699,12 @@ export class PixiRenderer {
             }
         }
 
-        // monta no formato esperado: {idle:{down:[]...}, walk:{...}} em quem chama
-        const textures4 = {
-            down: out.down || out.row0,
-            up: out.up || out.row3,
-            left: out.left || out.row1,
-            right: out.right || out.row2,
-        };
-
-        // normaliza caso algum esteja undefined
-        if (!textures4.down) textures4.down = out[dirs[0]];
-        if (!textures4.left) textures4.left = textures4.down;
-        if (!textures4.right) textures4.right = textures4.down;
-        if (!textures4.up) textures4.up = textures4.down;
-
-        return {
-            textures4,
-            meta: { frameW, frameH, framesPerRow, rows }
-        };
-    }
-
-    _guessFramesPerRow(imgW, frameH) {
-        // tenta frames 3..12, escolhe o que dá frameW inteiro e ratio mais plausível
-        let best = null;
-        for (let frames = 3; frames <= 12; frames++) {
-            if (imgW % frames !== 0) continue;
-            const frameW = imgW / frames;
-
-            // score: prioriza ratio ~0.75 (48x64) ou ~1.0 (64x64)
-            const ratio = frameW / frameH;
-            const score = Math.min(Math.abs(ratio - 0.75), Math.abs(ratio - 1.0));
-
-            if (!best || score < best.score) best = { framesPerRow: frames, frameW, score };
-        }
-
-        // fallback padrão 8
-        if (!best) {
-            const framesPerRow = 8;
-            const frameW = Math.floor(imgW / framesPerRow);
-            return { framesPerRow, frameW };
-        }
-
-        return { framesPerRow: best.framesPerRow, frameW: best.frameW };
+        return out;
     }
 
     _nearestTexture(t) {
-        try {
-            if (t?.baseTexture && this.PIXI?.SCALE_MODES) t.baseTexture.scaleMode = this.PIXI.SCALE_MODES.NEAREST;
-            if (t?.source && this.PIXI?.SCALE_MODES) t.source.scaleMode = this.PIXI.SCALE_MODES.NEAREST;
-        } catch { }
+        if (t?.baseTexture && this.PIXI?.SCALE_MODES) t.baseTexture.scaleMode = this.PIXI.SCALE_MODES.NEAREST;
+        if (t?.source && this.PIXI?.SCALE_MODES) t.source.scaleMode = this.PIXI.SCALE_MODES.NEAREST;
     }
 
     _loadImage(src) {
@@ -730,20 +718,11 @@ export class PixiRenderer {
     }
 
     // ============================================================
-    // FLOOR (tiles)
+    // FLOOR (floor.png)
     // ============================================================
-    async _loadFloorTextureOrFallback() {
-        // tenta achar um tile real dentro de /assets/tiles/
-        const candidates = [
-            "/assets/tiles/floor.png",
-            "/assets/tiles/Floor.png",
-            "/assets/tiles/ground.png",
-            "/assets/tiles/Ground.png",
-            "/assets/tiles/tile.png",
-            "/assets/tiles/Tile.png",
-        ];
-
-        for (const url of candidates) {
+    async _loadFloorTexture(candidates) {
+        for (const rel of candidates) {
+            const url = this._u(rel);
             try {
                 const img = await this._loadImage(url);
                 const tex = this.PIXI.Texture.from(img);
@@ -753,17 +732,18 @@ export class PixiRenderer {
         }
 
         // fallback procedural
-        return this._makeProceduralFloorTileTexture();
+        const tex = this._makeFloorTileTexture();
+        this._nearestTexture(tex);
+        return tex;
     }
 
-    _makeProceduralFloorTileTexture() {
+    _makeFloorTileTexture() {
         const c = document.createElement("canvas");
         c.width = 256;
         c.height = 256;
         const ctx = c.getContext("2d");
         ctx.imageSmoothingEnabled = false;
 
-        // “madeira escura / casa abandonada”
         ctx.fillStyle = "#0a0f16";
         ctx.fillRect(0, 0, 256, 256);
 
@@ -771,6 +751,7 @@ export class PixiRenderer {
             const shade = 10 + ((y / 32) % 2) * 10;
             ctx.fillStyle = `rgb(${shade},${shade + 10},${shade + 18})`;
             ctx.fillRect(0, y, 256, 32);
+
             ctx.fillStyle = "rgba(0,0,0,0.38)";
             ctx.fillRect(0, y + 31, 256, 1);
         }
@@ -789,19 +770,7 @@ export class PixiRenderer {
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, 256, 256);
 
-        const tex = this.PIXI.Texture.from(c);
-        this._nearestTexture(tex);
-        return tex;
-    }
-
-    _makeTilingSprite(texture, w, h) {
-        const PIXI = this.PIXI;
-        // Pixi v7 vs v8 constructor differences
-        try {
-            return new PIXI.TilingSprite({ texture, width: w, height: h });
-        } catch {
-            return new PIXI.TilingSprite(texture, w, h);
-        }
+        return this.PIXI.Texture.from(c);
     }
 
     // ============================================================
@@ -812,14 +781,24 @@ export class PixiRenderer {
     }
 
     _setScale(obj, sx, sy) {
-        if (!obj || !obj.scale) return;
-        if (typeof obj.scale.set === "function") obj.scale.set(sx, sy);
-        else { obj.scale.x = sx; obj.scale.y = sy; }
+        if (!obj) return;
+        const s = obj.scale;
+        if (!s) return;
+        if (typeof s.set === "function") s.set(sx, sy);
+        else {
+            s.x = sx;
+            s.y = sy;
+        }
     }
 
     _setAnchor(obj, ax, ay) {
-        if (!obj || !obj.anchor) return;
-        if (typeof obj.anchor.set === "function") obj.anchor.set(ax, ay);
-        else { obj.anchor.x = ax; obj.anchor.y = ay; }
+        if (!obj) return;
+        const a = obj.anchor;
+        if (!a) return;
+        if (typeof a.set === "function") a.set(ax, ay);
+        else {
+            a.x = ax;
+            a.y = ay;
+        }
     }
 }
