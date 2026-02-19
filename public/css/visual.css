@@ -1,0 +1,246 @@
+:root {
+    --bg: #070b11;
+    --panel: rgba(10, 14, 22, 0.62);
+    --stroke: rgba(255, 255, 255, 0.10);
+    --txt: rgba(255, 255, 255, 0.92);
+    --muted: rgba(255, 255, 255, 0.72);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--txt);
+    font-family: Inter, system-ui, Arial;
+}
+
+#gameRoot {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+#hud {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+}
+
+.panel {
+    position: absolute;
+    min-width: 280px;
+    max-width: 360px;
+    padding: 14px 14px 12px;
+    border: 1px solid var(--stroke);
+    border-radius: 14px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.40);
+}
+
+.panel.left {
+    left: 18px;
+    top: 14px;
+}
+
+.panel.right {
+    right: 18px;
+    top: 14px;
+    text-align: right;
+}
+
+.title {
+    font-size: 14px;
+    letter-spacing: 0.2px;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.title b {
+    color: var(--txt);
+}
+
+.barWrap {
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid var(--stroke);
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.barFill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #25d366, #9dff6a);
+    box-shadow: 0 0 18px rgba(157, 255, 106, 0.25);
+}
+
+.mini {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.panel.right .mini {
+    justify-content: flex-end;
+}
+
+.mini b {
+    color: var(--txt);
+}
+
+.hint {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    padding: 10px 14px;
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    background: rgba(10, 14, 22, 0.45);
+    backdrop-filter: blur(10px);
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* === LEVEL UP MODAL (garante que aparece acima do canvas) === */
+#levelup {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    /* fechado por padrão */
+    pointer-events: none;
+    /* não bloqueia o jogo fechado */
+}
+
+#levelup.show {
+    display: grid;
+    /* abre */
+    place-items: center;
+    pointer-events: auto;
+}
+
+#levelup.hide {
+    display: none;
+    pointer-events: none;
+}
+
+#levelup .box {
+    width: min(520px, 92vw);
+    background: rgba(10, 12, 18, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+}
+
+#choices {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+#choices .choice {
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+}
+
+#choices .choice:hover {
+    background: rgba(255, 255, 255, 0.10);
+    transform: translateY(-1px);
+}
+
+#choices .choice .t {
+    font-weight: 800;
+}
+
+#choices .choice .d {
+    opacity: 0.8;
+    font-size: 13px;
+}
+
+#modalRoot {
+    position: absolute;
+    inset: 0;
+    z-index: 80;
+    pointer-events: none;
+}
+
+#modalRoot .endOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, .55);
+    pointer-events: auto;
+}
+
+#modalRoot .endCard {
+    width: min(560px, 92vw);
+    background: rgba(10, 12, 18, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+    color: rgba(255, 255, 255, .92);
+}
+
+#modalRoot .endCard h2 {
+    margin: 0 0 8px;
+}
+
+#modalRoot .endCard p {
+    margin: 0 0 14px;
+    opacity: .85;
+}
+
+#modalRoot .endBtns {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#modalRoot .btn {
+    border-radius: 14px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+}
+
+#modalRoot .btn.primary {
+    background: rgba(93, 255, 122, 0.18);
+    border-color: rgba(93, 255, 122, 0.35);
+}
+
+#modalRoot .btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+    transform: translateY(-1px);
+}
+
+#modalRoot .endHint {
+    margin-top: 12px;
+    opacity: .75;
+    font-size: 13px;
+}

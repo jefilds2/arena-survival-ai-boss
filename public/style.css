@@ -1,0 +1,116 @@
+:root {
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    background: #0b0f14;
+}
+
+#root {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 40%, #111b2a, #05070a);
+}
+
+#hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+    user-select: none;
+}
+
+.hudBox {
+    background: rgba(0, 0, 0, .45);
+    border: 1px solid rgba(255, 255, 255, .12);
+    padding: 10px 12px;
+    border-radius: 12px;
+    backdrop-filter: blur(6px);
+    min-width: 220px;
+}
+
+.bar {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .14);
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.bar>i {
+    display: block;
+    height: 100%;
+    width: 50%;
+    background: rgba(255, 255, 255, .75);
+}
+
+.panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -52%);
+    width: min(520px, 92vw);
+    background: rgba(0, 0, 0, .65);
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 16px;
+    padding: 18px;
+    backdrop-filter: blur(10px);
+}
+
+.hidden {
+    display: none;
+}
+
+.choices {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.choiceBtn {
+    cursor: pointer;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    background: rgba(255, 255, 255, .06);
+    color: white;
+    text-align: left;
+}
+
+.choiceBtn:hover {
+    background: rgba(255, 255, 255, .1);
+}
+
+.footer {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    color: rgba(255, 255, 255, .75);
+    font-size: 12px;
+    pointer-events: none;
+}

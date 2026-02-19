@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Arena Survival AI Boss</title>
+
+    <!-- favicon (se não existir, não quebra; mas evita 404 se você criar) -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- seu css -->
+    <link rel="stylesheet" href="/css/visual.css" />
+
+    <!-- fallback mínimo caso o CSS não carregue -->
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #gameRoot {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gameRoot">
+        <canvas id="gameCanvas" aria-label="Arena Survival AI Boss"></canvas>
+
+        <!-- HUD (HTML por cima do canvas) -->
+        <div id="hud">
+            <div class="panel left">
+                <div class="title">
+                    <span id="hudName">Player</span> • Lv <b id="hudLevel">1</b> • XP
+                    <b id="hudXp">0/10</b>
+                </div>
+
+                <div class="barWrap" title="Vida">
+                    <div class="barFill" id="hudHpFill" style="width: 100%"></div>
+                </div>
+
+                <div class="mini">
+                    <span>DMG <b id="hudDmg">10</b></span>
+                    <span>FR <b id="hudFr">2.0</b>/s</span>
+                    <span>SPD <b id="hudSpd">3.0</b></span>
+                </div>
+            </div>
+
+            <div class="panel right">
+                <div class="title">
+                    Tempo <b id="hudTime">0.0s</b> • Enemies <b id="hudEnemies">0</b>
+                </div>
+                <div class="mini">
+                    <span>Boss IA: <b id="hudBossAi">OFF</b></span>
+                    <span>Boss em <b id="hudBossIn">--</b></span>
+                </div>
+            </div>
+
+            <div class="hint">
+                WASD mover • Espaço dash • I liga/desliga IA • R reiniciar
+            </div>
+        </div>
+
+        <!-- Modal de level up -->
+        <div id="levelup" class="hide" aria-hidden="true">
+            <div class="box">
+                <h3>Escolha um upgrade</h3>
+                <div id="choices"></div>
+            </div>
+        </div>
+
+        <div id="modalRoot"></div>
+    </div>
+
+    <!-- PixiJS + pixi-filters (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.15.0/dist/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-filters@6.1.5/dist/browser/pixi-filters.min.js"></script>
+
+    <!-- Seu código (module) -->
+    <script type="module" src="/js/main.js"></script>
+</body>
+
+</html>
