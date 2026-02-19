@@ -1,60 +1,150 @@
-Arena Survival AI Boss
-Um jogo de sobrevivência em arena desenvolvido em JavaScript, onde o jogador controla um personagem que enfrenta inimigos e um chefe inteligente. O chefe é controlado por uma IA baseada no Google Gemini (ou heurística como fallback), tornando o combate dinâmico e desafiador. O projeto utiliza PixiJS para renderização gráfica, Express.js para o servidor backend e integra APIs de IA para decisões do chefe.
+<h1>🎮 Arena Survival AI Boss</h1>
 
-Funcionalidades
-*Jogabilidade em Tempo Real: Movimento WASD, dash com espaço, tiro automático contra inimigos próximos.
-*Sistema de Level Up: Escolha upgrades ao subir de nível (dano, velocidade, HP, etc.).
-*IA do Chefe: Decisões tomadas via API Gemini (ação, ângulo, intensidade) ou heurística local.
-*Renderização: Suporte a PixiJS para sprites animados (player, inimigos, chefe) e fallback procedural.
-*HUD e UI: Interface HTML/CSS para vida, XP, tempo, inimigos, etc.
-*Servidor Backend: Node.js com Express para integração com Gemini API.
-*Assets: Sprites em pastas como assets (player, vampiros, chefe).
+<p>
+  Um jogo de sobrevivência em arena desenvolvido em <strong>JavaScript</strong>, onde o jogador controla um personagem que enfrenta inimigos e um <strong>chefe inteligente</strong>.
+</p>
 
-Tecnologias Utilizadas
-Frontend:
-*JavaScript (ES Modules)
-*PixiJS 8.x para renderização 2D
-*HTML5 Canvas (fallback se Pixi não carregar)
-*CSS para UI (HUD, modais)
+<p>
+  O chefe é controlado por uma IA baseada no <strong>Google Gemini</strong> (com <strong>fallback heurístico</strong> local), tornando o combate mais dinâmico e desafiador.
+  O projeto usa <strong>PixiJS</strong> para renderização gráfica, <strong>Express.js</strong> no backend e integra APIs de IA para as decisões do chefe.
+</p>
 
-Backend:
-*Node.js com Express 5.x
-*dotenv para variáveis de ambiente
-*Google Gemini API (via REST)
+<hr />
 
-Outros:
-*pnpm para gerenciamento de pacotes
-*Git para controle de versão
+<h2>✅ Funcionalidades</h2>
+<ul>
+  <li>
+    <strong>Jogabilidade em tempo real</strong>
+    <ul>
+      <li>Movimento: <strong>WASD</strong></li>
+      <li><strong>Dash</strong>: <strong>Espaço</strong></li>
+      <li><strong>Tiro automático</strong> contra inimigos próximos</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Sistema de Level Up</strong>
+    <ul>
+      <li>Escolha upgrades ao subir de nível (<strong>dano, velocidade, HP</strong>, etc.)</li>
+    </ul>
+  </li>
+  <li>
+    <strong>IA do Chefe</strong>
+    <ul>
+      <li>Decisões via <strong>Gemini API</strong> (ação, ângulo, intensidade)</li>
+      <li><strong>Fallback</strong>: heurística local (quando não houver chave / offline)</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Renderização</strong>
+    <ul>
+      <li>Prioriza <strong>PixiJS</strong> (sprites animados)</li>
+      <li>Fallback procedural quando necessário</li>
+    </ul>
+  </li>
+  <li>
+    <strong>HUD e UI</strong>
+    <ul>
+      <li>Interface <strong>HTML/CSS</strong> para vida, XP, tempo, inimigos, etc.</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Servidor Backend</strong>
+    <ul>
+      <li><strong>Node.js + Express</strong> para integração com Gemini</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Assets</strong>
+    <ul>
+      <li>Sprites organizados em pastas como <code>assets/</code> (player, inimigos, boss)</li>
+    </ul>
+  </li>
+</ul>
 
-Pré-requisitos
-*Node.js (versão 18 ou superior) – Download aqui
-*pnpm – Instale via npm install -g pnpm
-*Chave da API Gemini: Obtenha no Google AI Studio e configure no .env
-*Navegador Moderno: Chrome, Firefox, etc., com suporte a ES Modules e Canvas.
+<hr />
 
-Instalação
-Clone o Repositório:
-*Terminal do VS Code: "git clone https://github.com/seu-usuario/arena-survival-ai-boss.git
-cd arena-survival-ai-boss"
+<h2>🧰 Tecnologias Utilizadas</h2>
 
-Instale as Dependências:
-*Terminal do VS Code: "pnpm install"
+<h3>Frontend</h3>
+<ul>
+  <li><strong>JavaScript (ES Modules)</strong></li>
+  <li><strong>PixiJS 8.x</strong> (renderização 2D)</li>
+  <li><strong>HTML5 Canvas</strong> (fallback se Pixi não carregar)</li>
+  <li><strong>CSS</strong> (HUD, modais e UI)</li>
+</ul>
 
-Configure o Ambiente:
+<h3>Backend</h3>
+<ul>
+  <li><strong>Node.js</strong> + <strong>Express 5.x</strong></li>
+  <li><strong>dotenv</strong> (variáveis de ambiente)</li>
+  <li><strong>Google Gemini API</strong> (REST)</li>
+</ul>
 
-Renomeie .env.example para .env (se existir) ou crie um novo arquivo .env.
-Adicione sua chave da API Gemini:
+<h3>Outros</h3>
+<ul>
+  <li><strong>pnpm</strong> (gerenciamento de pacotes)</li>
+  <li><strong>Git</strong> (controle de versão)</li>
+</ul>
 
-    GEMINI_API_KEY=sua-chave-aqui
-    GEMINI_MODEL=gemini-2.5-flash
-    PORT=3000
-    
-Nota: Sem a chave, a IA do chefe usará heurística local (menos inteligente).
+<hr />
 
-Adicione os Assets:
-*Coloque a pasta assets dentro de public (ou ajuste as URLs no código).
-*Estrutura esperada (baseado em README.txt):
-public/assets/
+<h2>📌 Pré-requisitos</h2>
+<ul>
+  <li><strong>Node.js 18+</strong></li>
+  <li>
+    <strong>pnpm</strong>
+    <ul>
+      <li>Instale com:</li>
+    </ul>
+    <pre><code>npm install -g pnpm</code></pre>
+  </li>
+  <li>
+    <strong>Chave da API Gemini</strong>
+    <ul>
+      <li>Obtenha no <strong>Google AI Studio</strong> e configure no <code>.env</code></li>
+    </ul>
+  </li>
+  <li>
+    <strong>Navegador moderno</strong>
+    <ul>
+      <li>Chrome / Firefox / Edge com suporte a <strong>ES Modules</strong> e <strong>Canvas</strong></li>
+    </ul>
+  </li>
+</ul>
+
+<hr />
+
+<h2>⚙️ Instalação</h2>
+
+<h3>1) Clone o repositório</h3>
+<pre><code>git clone https://github.com/seu-usuario/arena-survival-ai-boss.git
+cd arena-survival-ai-boss</code></pre>
+
+<h3>2) Instale as dependências</h3>
+<pre><code>pnpm install</code></pre>
+
+<h3>3) Configure o ambiente</h3>
+<p>
+  Renomeie <code>.env.example</code> para <code>.env</code> (se existir) ou crie um novo <code>.env</code> e adicione:
+</p>
+
+<pre><code>GEMINI_API_KEY=sua-chave-aqui
+GEMINI_MODEL=gemini-2.5-flash
+PORT=3000</code></pre>
+
+<blockquote>
+  <p><strong>Nota:</strong> sem a chave, a IA do chefe usará <strong>heurística local</strong> (menos inteligente).</p>
+</blockquote>
+
+<hr />
+
+<h2>🧩 Assets (Sprites)</h2>
+<p>
+  Coloque a pasta <code>assets</code> dentro de <code>public/</code> (ou ajuste as URLs no código).
+</p>
+
+<h3>Estrutura esperada</h3>
+<pre><code>public/assets/
 ├── player/
 │   ├── idle.png
 │   ├── run.png
@@ -62,84 +152,163 @@ public/assets/
 │   ├── attack.png
 │   ├── hurt.png
 │   └── death.png
-├── vampires/  # Para inimigos comuns
+├── vampires/              # inimigos comuns
 │   ├── idle.png
 │   ├── walk.png
 │   └── etc.
-├── boss-vampire/  # Para o chefe
+├── boss-vampire/          # chefe
 │   └── etc.
 └── tiles/
-    └── floor.png  # Chão (opcional, tem fallback procedural)  
-*Sprites devem ser em formato PNG, com animações em strips (uma linha por ação) ou sheets 4-dir (para inimigos/chefe).
+    └── floor.png          # chão (opcional: existe fallback procedural)</code></pre>
 
-Como Executar o Jogo Localmente
+<ul>
+  <li>Sprites devem estar em <strong>PNG</strong></li>
+  <li>Animações podem estar em <strong>strips</strong> (uma linha por ação) ou <strong>sheets 4-dir</strong> (para inimigos/chefe)</li>
+</ul>
 
-Inicie o Servidor:
-Para desenvolvimento (com watch):
-*Terminal do VS Code:"pnpm run dev"
+<hr />
 
-Para produção:
-*Terminal do VS Code:"pnpm run start"
+<h2>▶️ Como executar o jogo localmente</h2>
 
-OBS: O servidor rodará em http://localhost:3000 (ou a porta definida no .env).
+<h3>Inicie o servidor</h3>
 
-Abra no Navegador:
-*Acesse http://localhost:3000 em seu navegador.
-*O jogo carregará automaticamente. Use WASD para mover, espaço para dash, I para ligar/desligar IA do chefe, R para reiniciar.
+<p><strong>Desenvolvimento (watch):</strong></p>
+<pre><code>pnpm run dev</code></pre>
 
-Jogabilidade Básica:
+<p><strong>Produção:</strong></p>
+<pre><code>pnpm run start</code></pre>
 
-*Sobreviva o máximo possível contra inimigos que spawnam automaticamente.
-*O chefe aparece aos 60 segundos e toma decisões a cada ~1 segundo.
-*Colete orbes (XP) para subir de nível e escolher upgrades.
-*Derrote o chefe para vencer.
+<p>
+  <em>OBS:</em> O servidor rodará em <code>http://localhost:3000</code> (ou a porta definida no <code>.env</code>).
+</p>
 
-Estrutura do Projeto
-arena-survival-ai-boss/
-├── .env                    # Variáveis de ambiente (chave Gemini)
-├── [package.json](http://_vscodecontentref_/7)            # Dependências e scripts
-├── [pnpm-lock.yaml](http://_vscodecontentref_/8)          # Lockfile do pnpm
-├── public/                 # Frontend estático
-│   ├── [index.html](http://_vscodecontentref_/9)          # Página principal
-│   ├── [style.css](http://_vscodecontentref_/10)           # CSS global
-│   ├── [visual.css](http://_vscodecontentref_/11)      # CSS específico do jogo
+<h3>Abra no navegador</h3>
+<ul>
+  <li>Acesse <code>http://localhost:3000</code></li>
+  <li>O jogo carregará automaticamente</li>
+</ul>
+
+<hr />
+
+<h2>🎮 Controles do jogo</h2>
+<ul>
+  <li><strong>W A S D</strong> → mover</li>
+  <li><strong>Espaço</strong> → dash</li>
+  <li><strong>I</strong> → ligar/desligar IA do chefe</li>
+  <li><strong>R</strong> → reiniciar</li>
+</ul>
+
+<hr />
+
+<h2>🕹️ Jogabilidade básica</h2>
+<ul>
+  <li>Sobreviva o máximo possível contra inimigos que aparecem automaticamente</li>
+  <li>O <strong>chefe aparece aos 60 segundos</strong> e toma decisões a cada ~<strong>1 segundo</strong></li>
+  <li>Colete <strong>orbes (XP)</strong> para subir de nível e escolher upgrades</li>
+  <li>Derrote o chefe para vencer</li>
+</ul>
+
+<hr />
+
+<h2>🗂️ Estrutura do projeto</h2>
+<pre><code>arena-survival-ai-boss/
+├── .env                         # variáveis de ambiente (Gemini)
+├── package.json                 # dependências e scripts
+├── pnpm-lock.yaml               # lockfile do pnpm
+├── public/                      # frontend estático
+│   ├── index.html               # página principal
+│   ├── style.css                # CSS global
+│   ├── visual.css               # CSS específico do jogo
 │   ├── js/
-│   │   ├── [main.js](http://_vscodecontentref_/12)         # Ponto de entrada
+│   │   ├── main.js              # ponto de entrada
 │   │   └── game/
-│   │       ├── [Game.js](http://_vscodecontentref_/13)     # Lógica principal do jogo
-│   │       ├── [constants.js](http://_vscodecontentref_/14) # Configurações (CFG)
-│   │       ├── [math.js](http://_vscodecontentref_/15)     # Funções matemáticas
-│   │       ├── input.js    # Controle de entrada
-│   │       ├── entities/   # Classes de entidades (Player, Enemy, Boss, etc.)
-│   │       ├── systems/    # Sistemas (colisão, spawner)
-│   │       ├── renderer/   # Renderização (PixiRenderer, assets)
-│   │       ├── ia/         # IA do chefe (Gemini client, heurística)
-│   │       └── ui/         # UI (HUD, levelup, end screen)
-│   └── assets/             # Sprites e tiles (adicionar manualmente)
-├── server/                 # Backend
-│   ├── [index.js](http://_vscodecontentref_/16)            # Servidor Express
-│   └── [geminiClient.js](http://_vscodecontentref_/17)     # Cliente para Gemini API
-└── README.md               # Este arquivo
+│   │       ├── Game.js          # lógica principal do jogo
+│   │       ├── constants.js     # configurações (CFG)
+│   │       ├── math.js          # funções matemáticas
+│   │       ├── input.js         # controle de entrada
+│   │       ├── entities/        # classes (Player, Enemy, Boss, etc.)
+│   │       ├── systems/         # sistemas (colisão, spawner)
+│   │       ├── renderer/        # renderização (PixiRenderer, assets)
+│   │       ├── ia/              # IA do chefe (Gemini client, heurística)
+│   │       └── ui/              # UI (HUD, levelup, end screen)
+│   └── assets/                  # sprites e tiles (adicionar manualmente)
+├── server/                      # backend
+│   ├── index.js                 # servidor Express
+│   └── geminiClient.js          # cliente Gemini API
+└── README.md                    # este arquivo</code></pre>
 
-Configuração Avançada
-*Renderização: O jogo prioriza PixiJS. Se falhar, usa Canvas 2D. Ajuste escalas em PixiRenderer.js.
-*IA do Chefe: Intervalo de decisão em constants.js (ai.thinkInterval). Timeout em ai.timeoutMs.
-*Debug: Variáveis globais como window.__game e window.__fx para console.
-*Build: Não há build separado; é puro JS. Use um bundler como Vite se necessário para produção.
+<hr />
 
-Contribuição
-1. Fork o repositório.
-2. Crie uma branch para sua feature (git checkout -b feature/nova-feature).
-3. Commit suas mudanças (git commit -am 'Adiciona nova feature').
-4. Push para a branch (git push origin feature/nova-feature).
-5. Abra um Pull Request.
+<h2>🔧 Configuração avançada</h2>
+<ul>
+  <li>
+    <strong>Renderização</strong>
+    <ul>
+      <li>O jogo prioriza <strong>PixiJS</strong>; se falhar, usa <strong>Canvas 2D</strong></li>
+      <li>Ajuste escalas em <code>PixiRenderer.js</code></li>
+    </ul>
+  </li>
+  <li>
+    <strong>IA do chefe</strong>
+    <ul>
+      <li>Intervalo de decisão em <code>constants.js</code> (<code>ai.thinkInterval</code>)</li>
+      <li>Timeout em <code>ai.timeoutMs</code></li>
+    </ul>
+  </li>
+  <li>
+    <strong>Debug</strong>
+    <ul>
+      <li>Variáveis globais como <code>window.__game</code> e <code>window.__fx</code> para inspeção no console</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Build</strong>
+    <ul>
+      <li>Não há build separado; é <strong>puro JS</strong></li>
+      <li>Se necessário, use um bundler como <strong>Vite</strong> para produção</li>
+    </ul>
+  </li>
+</ul>
 
-Licença
-*Este projeto é licenciado sob a ISC License. Veja o arquivo LICENSE para detalhes.
+<hr />
 
-Suporte
-*Para issues, use o GitHub Issues.
-*Certifique-se de que os assets estão corretos; sem eles, o jogo usa fallbacks visuais.
-*A IA Gemini requer internet; offline, usa heurística.
+<h2>🤝 Contribuição</h2>
+<ol>
+  <li>Faça um <strong>fork</strong> do repositório</li>
+  <li>Crie uma branch para sua feature:</li>
+</ol>
+<pre><code>git checkout -b feature/nova-feature</code></pre>
 
-Divirta-se jogando e contribuindo! 🎮
+<ol start="3">
+  <li>Commit suas mudanças:</li>
+</ol>
+<pre><code>git commit -am "Adiciona nova feature"</code></pre>
+
+<ol start="4">
+  <li>Push para sua branch:</li>
+</ol>
+<pre><code>git push origin feature/nova-feature</code></pre>
+
+<ol start="5">
+  <li>Abra um <strong>Pull Request</strong></li>
+</ol>
+
+<hr />
+
+<h2>📄 Licença</h2>
+<p>
+  Este projeto é licenciado sob a <strong>ISC License</strong>. Veja o arquivo <code>LICENSE</code> para detalhes.
+</p>
+
+<hr />
+
+<h2>🆘 Suporte</h2>
+<ul>
+  <li>Para problemas e sugestões, use o <strong>GitHub Issues</strong></li>
+  <li>Verifique se os <strong>assets</strong> estão corretos — sem eles, o jogo usará fallbacks visuais</li>
+  <li>A IA Gemini requer <strong>internet</strong>; offline, o jogo usa <strong>heurística local</strong></li>
+</ul>
+
+<hr />
+
+<h2>🎉 Divirta-se jogando e contribuindo! 🎮</h2>
