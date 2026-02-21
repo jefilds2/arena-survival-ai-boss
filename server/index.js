@@ -1,32 +1,48 @@
+// server/index.js
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import { getBossDecisionFromGemini } from "./geminiClient.js";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT || 3000);
-
 app.use(express.json({ limit: "256kb" }));
-app.use(express.static("public", { extensions: ["html"] }));
 
+// arquivos estáticos (frontend)
+app.use(express.static(path.join(__dirname, "../public")));
+
+// 🔎 health check
+app.get("/api/health", (req, res) => {
+    res.json({
+        ok: true,
+        hasGeminiKey: Boolean(
+            process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+        ),
+        model: process.env.GEMINI_MODEL || "not-set",
+    });
+});
+
+// 🤖 decisão do boss
 app.post("/api/boss/decision", async (req, res) => {
     try {
-        const state = req.body?.state;
-        if (!state || typeof state !== "object") {
-            return res.status(400).json({ ok: false, error: "Missing state object" });
-        }
-
-        const decision = await getBossDecisionFromGemini(state);
-        return res.json({ ok: true, decision });
+        const decision = await getBossDecisionFromGemini(req.body);
+        res.json({ ok: true, provider: "gemini", decision });
     } catch (err) {
-        return res.status(500).json({
-            ok: false,
-            error: err?.message || "Internal error"
+        // fallback silencioso → heurística assume no client
+        res.json({
+            ok: true,
+            provider: "heuristic",
+            decision: null,
+            error: err?.message || "gemini_error",
         });
     }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`[SERVER] Rodando em http://localhost:${PORT}`);
 });

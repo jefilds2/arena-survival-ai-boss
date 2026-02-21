@@ -31,6 +31,10 @@ export class Game {
         // ✅ throttle da IA
         this._nextAiThinkAt = 0;
 
+        // ✅ fala do boss (só aparece quando decision.__ai===true)
+        this._bossSay = "";
+        this._bossSayUntil = 0;
+
         this.levelPanel = document.getElementById("levelup");
         this.choicesEl = document.getElementById("choices");
 
@@ -41,7 +45,7 @@ export class Game {
 
         window.addEventListener("keydown", (e) => {
             const k = e.key.toLowerCase();
-            if (k === "i") this.ai.toggle?.();
+            if (k === "i") this.ai.toggle?.(); // debug
             if (k === "r") this.reset();
         });
 
@@ -176,12 +180,36 @@ export class Game {
             }
         }
 
-        if (!set.size) {
-            set.add("DASH");
-            set.add("SHOOT_RING");
-        }
+        // ✅ mínimo garantido sempre
+        set.add("DASH");
+        set.add("SHOOT_RING");
+
+        // ✅ Stage 1 como você pediu: DASH + SHOOT_RING + TELEPORT
+        if ((this.stage || 1) <= 1) set.add("TELEPORT");
 
         return [...set];
+    }
+
+    _applyBossSpeech(decision) {
+        // só fala se vier marcado como IA online
+        if (!decision || decision.__ai !== true) return;
+
+        const msg = typeof decision.say === "string" ? decision.say.trim() : "";
+        if (!msg) return;
+
+        const ttl = Number.isFinite(decision.sayTtl) ? decision.sayTtl : 2.2;
+        this._bossSay = msg.slice(0, 90);
+        this._bossSayUntil = this.time + Math.max(0.8, Math.min(6, ttl));
+    }
+
+    _circlesHitInflated(a, b, inflate = 0) {
+        const ar = (a?.radius ?? a?.r ?? 0);
+        const br = (b?.radius ?? b?.r ?? 0);
+        const r = ar + br + (inflate || 0);
+
+        const dx = (a.x - b.x);
+        const dy = (a.y - b.y);
+        return (dx * dx + dy * dy) <= (r * r);
     }
 
     reset() {
@@ -207,6 +235,10 @@ export class Game {
 
         // ✅ reset do throttle de IA
         this._nextAiThinkAt = 0;
+
+        // ✅ reset fala
+        this._bossSay = "";
+        this._bossSayUntil = 0;
 
         if (this.levelPanel) hideLevelUp(this.levelPanel);
         this._hideEndOverlay();
@@ -242,6 +274,10 @@ export class Game {
         // ✅ reset do throttle de IA
         this._nextAiThinkAt = 0;
 
+        // ✅ reset fala
+        this._bossSay = "";
+        this._bossSayUntil = 0;
+
         if (this.levelPanel) hideLevelUp(this.levelPanel);
         this._hideEndOverlay();
     }
@@ -274,6 +310,9 @@ export class Game {
             boss: this.boss,
             bullets: this.bullets,
             orbs: this.orbs,
+
+            // ✅ renderer pode usar isso depois (fala do boss)
+            bossSay: (this._bossSayUntil > this.time) ? this._bossSay : null,
         };
     }
 
@@ -296,14 +335,18 @@ export class Game {
             time: this.time,
 
             stage: this.stage ?? 1,
-
             enemies: this.enemies.length + (b ? 1 : 0),
 
+            // ✅ ainda é "enabled", mas agora você tem bossSay pra confirmar IA online
             bossAi: !!this.ai?.enabled,
+            bossAiControl: (this._bossDecision?.__ai === true),
             bossIn,
 
             bossHp: b ? b.hp : null,
             bossMaxHp: b ? b.maxHp : null,
+
+            // ✅ fala do boss (HUD pode mostrar)
+            bossSay: (this._bossSayUntil > this.time) ? this._bossSay : null,
         };
     }
 
@@ -380,6 +423,7 @@ export class Game {
 
         const e = new Enemy(x, y);
 
+        // scaling por stage
         e.hp *= (this.diff?.enemyHpMul ?? 1);
         e.speed *= (this.diff?.enemySpeedMul ?? 1);
 
@@ -405,27 +449,38 @@ export class Game {
         return base * (this.diff?.bossDmgMul ?? 1);
     }
 
-    spawnBossRing(x, y, count) {
-        const dmg = this._bossProjectileDamage() * 0.75;
+    // ✅ bolas maiores/mais rápidas + intensidade
+    spawnBossRing(x, y, count, intensity = 0.5) {
+        intensity = Math.max(0, Math.min(1, intensity));
+
+        const dmg = this._bossProjectileDamage() * (0.65 + intensity * 0.35);
+        const speedMul = 1.05 + intensity * 0.65;
+        const r = 6 + Math.floor(intensity * 4);
+        const ttl = 1.55 + intensity * 0.55;
 
         for (let i = 0; i < count; i++) {
             const a = (Math.PI * 2 * i) / count;
             const dir = fromAngle(a);
 
-            const b = new Bullet(x, y, x + dir.x, y + dir.y, dmg, 0.55);
-            b.r = 5;
-            b.vx *= 0.55;
-            b.vy *= 0.55;
-            b.ttl = 1.8;
+            const b = new Bullet(x, y, x + dir.x, y + dir.y, dmg, speedMul);
+            b.r = r;
+            b.radius = r;
+            b.ttl = ttl;
             b.isEnemy = true;
             this.bullets.push(b);
         }
     }
 
+    // ✅ shotgun mais “visível” e mortal
     spawnBossShotgun(x, y, tx, ty, intensity = 0.5) {
-        const pellets = 6 + Math.floor(intensity * 6);
-        const spread = 0.45 + intensity * 0.35;
-        const baseDmg = this._bossProjectileDamage() * (0.55 + intensity * 0.35);
+        intensity = Math.max(0, Math.min(1, intensity));
+
+        const pellets = 8 + Math.floor(intensity * 8);
+        const spread = 0.48 + intensity * 0.45;
+        const baseDmg = this._bossProjectileDamage() * (0.35 + intensity * 0.30);
+        const speedMul = 1.10 + intensity * 0.40;
+        const r = 5 + Math.floor(intensity * 2);
+        const ttl = 1.05 + intensity * 0.35;
 
         const ang = Math.atan2(ty - y, tx - x);
 
@@ -434,12 +489,11 @@ export class Game {
             const a = ang + t * spread;
 
             const dir = fromAngle(a);
-            const b = new Bullet(x, y, x + dir.x, y + dir.y, baseDmg, 0.75);
+            const b = new Bullet(x, y, x + dir.x, y + dir.y, baseDmg, speedMul);
             b.isEnemy = true;
-            b.r = 4;
-            b.ttl = 1.35;
-            b.vx *= 0.85;
-            b.vy *= 0.85;
+            b.r = r;
+            b.radius = r;
+            b.ttl = ttl;
             this.bullets.push(b);
         }
     }
@@ -457,15 +511,12 @@ export class Game {
     }
 
     _maybeRequestBossDecision(nowTime) {
-        // ✅ respeita toggle/off
         if (!this.ai) return;
         if (this.ai.enabled === false) return;
 
-        // ✅ throttle (não chama todo frame)
-        const every = CFG.ai?.thinkEvery ?? 0.35;
+        const every = this.ai?.thinkEvery ?? CFG.ai?.thinkEvery ?? 0.35;
         if (nowTime < (this._nextAiThinkAt ?? 0)) return;
 
-        // se tem promise em voo, não dispara outra
         if (this._bossDecisionPromise) return;
 
         this._nextAiThinkAt = nowTime + every;
@@ -530,9 +581,10 @@ export class Game {
         // Update enemies
         for (const e of this.enemies) e.update(this, dt);
 
-        // Boss AI decision
+        // Boss AI decision + fala
         if (this.boss) {
             this._maybeRequestBossDecision(this.time);
+            this._applyBossSpeech(this._bossDecision);
             this.boss.update(this, dt, this._bossDecision);
         }
 
@@ -549,7 +601,7 @@ export class Game {
             if (b.isEnemy) {
                 if (circlesHit(b, this.player)) {
                     b.dead = true;
-                    // ✅ usa dano do projétil (permite padrões diferentes)
+
                     const dmg = Number.isFinite(b.dmg) ? b.dmg : this._bossProjectileDamage();
                     this.damagePlayer(dmg);
                 }

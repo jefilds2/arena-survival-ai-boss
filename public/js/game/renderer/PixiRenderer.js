@@ -8,6 +8,10 @@ export class PixiRenderer {
 
         this.floor = null;
         this.world = null;
+
+        // camada de hazards (telegraph no chão)
+        this.hazards = null;
+
         this.fx = null;
 
         this._player = null;
@@ -17,10 +21,21 @@ export class PixiRenderer {
         this._bullets = new Map();
         this._orbs = new Map();
 
+        // hazards (blast/laser)
+        this._hazards = new Map();
+
+        // fala do boss (debug IA)
+        this._bossSpeech = {
+            container: null,
+            bg: null,
+            txt: null,
+            lastText: "",
+        };
+
         // escalas (ajuste fino depois)
         this.SCALE_PLAYER = 0.8;
         this.SCALE_ENEMY = 2.5;
-        this.SCALE_BOSS = 3;
+        this.SCALE_BOSS = 4.5;
 
         // resolve assets a partir do arquivo atual
         this._root = new URL("../../../", import.meta.url);
@@ -78,7 +93,13 @@ export class PixiRenderer {
         this.world.zIndex = 1;
         this.stage.addChild(this.world);
 
-        // fx
+        // hazards (telegraphs no chão) - sempre atrás das entidades
+        this.hazards = new PIXI.Container();
+        this.hazards.sortableChildren = true;
+        this.hazards.zIndex = -1000000;
+        this.world.addChild(this.hazards);
+
+        // fx (hit text, etc)
         this.fx = new PIXI.Container();
         this.fx.sortableChildren = true;
         this.fx.zIndex = 9999;
@@ -134,6 +155,12 @@ export class PixiRenderer {
             this._boss.destroy?.();
             this._boss = null;
         }
+
+        // hazards/telegraphs (blast circle + laser beam)
+        this._drawHazards(state);
+
+        // fala acima do boss (debug IA)
+        this._drawBossSpeech(state);
 
         // enemies
         this._syncListSprites(this._enemies, state.enemies ?? [], () => {
@@ -227,6 +254,334 @@ export class PixiRenderer {
             else requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
+    }
+
+    // ============================================================
+    // HAZARDS (BLAST circle + LASER beam)
+    // ============================================================
+    _drawHazards(state) {
+        if (!this.hazards) return;
+
+        const list = this._collectHazards(state);
+
+        // sync por id determinístico (evita criar/destroir todo frame)
+        const ids = new Set();
+        for (let i = 0; i < list.length; i++) {
+            const h = list[i] || {};
+            const kind = String(h.kind ?? h.type ?? "").toLowerCase();
+
+            // id estável
+            if (!h.id) {
+                if (kind === "blast") h.id = "haz_blast_" + i;
+                else if (kind === "laser") h.id = "haz_laser_" + i;
+                else h.id = "haz_" + i;
+            }
+            ids.add(h.id);
+
+            if (!this._hazards.has(h.id)) {
+                const sp = new this.PIXI.Graphics();
+                sp.zIndex = -999999; // sempre atrás das entidades
+                this.hazards.addChild(sp);
+                this._hazards.set(h.id, sp);
+            }
+        }
+
+        for (const [id, sp] of this._hazards) {
+            if (!ids.has(id)) {
+                sp.destroy?.();
+                this._hazards.delete(id);
+            }
+        }
+
+        // update
+        for (let i = 0; i < list.length; i++) {
+            const h = list[i] || {};
+            const sp = this._hazards.get(h.id);
+            if (!sp) continue;
+            this._updateHazardSprite(sp, h);
+        }
+    }
+
+    _collectHazards(state) {
+        const out = [];
+
+        // 1) hazards vindos direto do estado do jogo (preferencial)
+        if (Array.isArray(state.hazards)) {
+            for (const h of state.hazards) out.push(h);
+        }
+
+        // 2) fallback: telegraph do boss (se você não quiser montar state.hazards)
+        const boss = state.boss;
+        const player = state.player;
+        if (boss && Number(boss.telegraph ?? 0) > 0) {
+            const telegraphTypeRaw =
+                boss.telegraphType ??
+                boss.telegraphKind ??
+                boss.telegraphAction ??
+                boss.nextAction ??
+                boss.action ??
+                boss.intent;
+
+            const telegraphType = String(telegraphTypeRaw ?? "").toLowerCase();
+            const remain = Number(boss.telegraph ?? 0);
+            const total = Number(boss.telegraphTotal ?? boss.telegraphMax ?? 800) || 800;
+            const p = total > 0 ? Math.max(0, Math.min(1, 1 - remain / total)) : 0.5;
+
+            const pulse = 0.65 + 0.35 * Math.sin(performance.now() / 80);
+            const alpha = Math.max(0.15, Math.min(0.95, (0.25 + 0.55 * p) * pulse));
+
+            // BLAST
+            if (telegraphType.includes("blast")) {
+                out.push({
+                    id: "boss_blast",
+                    kind: "blast",
+                    x: Number(boss.telegraphX ?? boss.targetX ?? player?.x ?? boss.x ?? 0),
+                    y: Number(boss.telegraphY ?? boss.targetY ?? player?.y ?? boss.y ?? 0),
+                    r: Number(boss.telegraphR ?? boss.blastR ?? boss.radiusR ?? 120),
+                    alpha,
+                    color: boss.telegraphColor ?? 0xff3b3b,
+                    thickness: 2 + Math.floor(p * 3),
+                });
+            }
+
+            // LASER
+            if (telegraphType.includes("laser")) {
+                const ang =
+                    Number.isFinite(boss.telegraphAngle)
+                        ? Number(boss.telegraphAngle)
+                        : Math.atan2((player?.y ?? boss.y) - boss.y, (player?.x ?? boss.x) - boss.x);
+
+                out.push({
+                    id: "boss_laser",
+                    kind: "laser",
+                    x: Number(boss.x ?? 0),
+                    y: Number(boss.y ?? 0),
+                    angle: ang,
+                    len: Number(boss.laserLen ?? boss.telegraphLen ?? 700),
+                    w: Number(boss.laserW ?? boss.telegraphW ?? 18),
+                    alpha,
+                    color: boss.telegraphColor ?? 0xff3b3b,
+                    thickness: 2 + Math.floor(p * 2),
+                });
+            }
+        }
+
+        // 3) hazards que o boss possa expor diretamente
+        if (boss && Array.isArray(boss.hazards)) {
+            for (const h of boss.hazards) out.push(h);
+        }
+
+        // remove duplicados por id
+        const uniq = [];
+        const seen = new Set();
+        for (let i = 0; i < out.length; i++) {
+            const h = out[i];
+            if (!h) continue;
+            const id = h.id ?? `haz_${i}`;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            uniq.push(h);
+        }
+
+        return uniq;
+    }
+
+    _updateHazardSprite(g, h) {
+        const kind = String(h.kind ?? h.type ?? "").toLowerCase();
+        const color = Number.isFinite(h.color) ? h.color : 0xff3b3b;
+
+        // alpha geral
+        const a = Number.isFinite(h.alpha) ? Math.max(0, Math.min(1, h.alpha)) : 0.5;
+        const fillA = Math.max(0, Math.min(1, a * 0.20));
+        const strokeA = Math.max(0, Math.min(1, a * 0.95));
+        const thick = Number.isFinite(h.thickness) ? h.thickness : 3;
+
+        g.clear();
+
+        if (kind === "blast") {
+            const x = Number(h.x ?? 0);
+            const y = Number(h.y ?? 0);
+            const r = Math.max(2, Number(h.r ?? 120));
+
+            g.position.set(x, y);
+            g.rotation = 0;
+
+            // fill + stroke
+            g.circle(0, 0, r).fill({ color, alpha: fillA });
+            g.circle(0, 0, r).stroke({ color, alpha: strokeA, width: thick });
+
+            // anel interno opcional (fica mais “vivo”)
+            const r2 = Math.max(2, r * 0.65);
+            g.circle(0, 0, r2).stroke({ color, alpha: strokeA * 0.45, width: 1 });
+
+            g.zIndex = -999999 + y;
+            return;
+        }
+
+        if (kind === "laser") {
+            // suporta tanto (x,y,angle,len) quanto (x1,y1,x2,y2)
+            let x = Number(h.x ?? h.x1 ?? 0);
+            let y = Number(h.y ?? h.y1 ?? 0);
+
+            let angle = Number(h.angle);
+            let len = Number(h.len ?? 700);
+
+            if (Number.isFinite(h.x2) && Number.isFinite(h.y2)) {
+                const dx = Number(h.x2) - x;
+                const dy = Number(h.y2) - y;
+                angle = Math.atan2(dy, dx);
+                len = Math.hypot(dx, dy);
+            }
+
+            if (!Number.isFinite(angle)) angle = 0;
+            if (!Number.isFinite(len) || len <= 0) len = 700;
+
+            const w = Math.max(2, Number(h.w ?? 18));
+
+            g.position.set(x, y);
+            g.rotation = angle;
+
+            // feixe (fill) + linha central (stroke)
+            g.rect(0, -w / 2, len, w).fill({ color, alpha: fillA });
+            g.moveTo(0, 0);
+            g.lineTo(len, 0);
+            g.stroke({ color, alpha: strokeA, width: thick });
+
+            // “pontas” (melhora leitura)
+            g.circle(0, 0, Math.max(2, w * 0.18)).fill({ color, alpha: strokeA });
+            g.circle(len, 0, Math.max(2, w * 0.18)).fill({ color, alpha: strokeA * 0.75 });
+
+            g.zIndex = -999999 + y;
+            return;
+        }
+
+        // tipo desconhecido: não desenha nada
+        g.position.set(-999999, -999999);
+        g.zIndex = -999999;
+    }
+
+    // ============================================================
+    // BOSS SPEECH (debug IA)
+    // ============================================================
+    _drawBossSpeech(state) {
+        const boss = state.boss;
+        if (!boss) {
+            this._destroyBossSpeech();
+            return;
+        }
+
+        const text = this._getBossSayText(boss);
+        if (!text) {
+            this._destroyBossSpeech();
+            return;
+        }
+
+        this._upsertBossSpeech();
+
+        const s = this._bossSpeech;
+
+        // atualiza texto apenas se mudou (evita relayout todo frame)
+        const t = String(text).trim();
+        if (t !== s.lastText) {
+            s.lastText = t;
+            s.txt.text = t.length > 220 ? (t.slice(0, 220) + "…") : t;
+
+            // redesenha bg baseado no tamanho do texto
+            const padX = 10;
+            const padY = 6;
+            const w = Math.max(40, s.txt.width);
+            const h = Math.max(18, s.txt.height);
+
+            s.bg.clear();
+            s.bg.roundRect(
+                -(w / 2) - padX,
+                -(h) - padY,
+                w + padX * 2,
+                h + padY * 2,
+                10
+            ).fill({ color: 0x000000, alpha: 0.35 });
+
+            // seta simples
+            s.bg.moveTo(-8, padY);
+            s.bg.lineTo(0, padY + 10);
+            s.bg.lineTo(8, padY);
+            s.bg.fill({ color: 0x000000, alpha: 0.35 });
+        }
+
+        // posiciona acima do boss
+        const bx = Number(boss.x ?? 0);
+        const by = Number(boss.y ?? 0);
+        const r = Number(boss.r ?? boss.radius ?? 26);
+        const offY = Math.max(70, r * 2.4);
+
+        s.container.position.set(bx, by - offY);
+        s.container.zIndex = (by ?? 0) + 999999;
+    }
+
+    _getBossSayText(boss) {
+        // tenta várias chaves comuns (pra casar com seu BossAI/heurística sem dor)
+        const direct =
+            boss.say ??
+            boss.speech ??
+            boss.debugSay ??
+            boss.debugText ??
+            boss.aiSay ??
+            boss.lastSay ??
+            boss.thought ??
+            boss.reason;
+
+        if (typeof direct === "string" && direct.trim()) return direct;
+
+        // caso venha como objeto (ex.: boss.debug = { say: "..." })
+        if (boss.debug && typeof boss.debug === "object") {
+            const t = boss.debug.say ?? boss.debug.text ?? boss.debug.msg;
+            if (typeof t === "string" && t.trim()) return t;
+        }
+
+        return "";
+    }
+
+    _upsertBossSpeech() {
+        const s = this._bossSpeech;
+        if (s.container) return;
+
+        const c = new this.PIXI.Container();
+        c.sortableChildren = true;
+
+        const bg = new this.PIXI.Graphics();
+        bg.zIndex = 0;
+
+        const txt = new this.PIXI.Text("", {
+            fontSize: 14,
+            fill: 0xffffff,
+            stroke: 0x000000,
+            strokeThickness: 4,
+            wordWrap: true,
+            wordWrapWidth: 260,
+        });
+        this._setAnchor(txt, 0.5, 1);
+        txt.zIndex = 1;
+
+        c.addChild(bg);
+        c.addChild(txt);
+
+        // coloca em fx pra ficar sempre acima das entidades
+        this.fx.addChild(c);
+
+        s.container = c;
+        s.bg = bg;
+        s.txt = txt;
+        s.lastText = "";
+    }
+
+    _destroyBossSpeech() {
+        const s = this._bossSpeech;
+        if (!s.container) return;
+        s.container.destroy?.({ children: true });
+        s.container = null;
+        s.bg = null;
+        s.txt = null;
+        s.lastText = "";
     }
 
     // ============================================================
@@ -558,9 +913,6 @@ export class PixiRenderer {
         const frameH = Math.floor(H / rows) || H;
         const best = this._inferFramesPerRow(img, { rows, frameH, prefer });
 
-        // debug útil (pode comentar depois)
-        // console.info("[sheet]", url.split("/").pop(), { W, H, ...best });
-
         return this._sliceSheet4Dir(img, {
             rows,
             framesPerRow: best.framesPerRow,
@@ -571,7 +923,6 @@ export class PixiRenderer {
 
     _inferFramesPerRow(img, { rows, frameH, prefer }) {
         const W = img.width;
-        const H = img.height;
 
         const candidates = [];
         for (let n = 3; n <= 16; n++) {
@@ -611,7 +962,7 @@ export class PixiRenderer {
         return candidates[0];
     }
 
-    _scoreCandidateByAlpha(img, { fw, fh, framesPerRow, rows }) {
+    _scoreCandidateByAlpha(img, { fw, fh, framesPerRow }) {
         // amostra poucos frames da primeira linha
         const sample = [0, Math.floor(framesPerRow / 2), Math.max(0, framesPerRow - 1)];
         const c = document.createElement("canvas");
@@ -628,7 +979,7 @@ export class PixiRenderer {
 
             const data = ctx.getImageData(0, 0, fw, fh).data;
 
-            let minX = fw, minY = fh, maxX = -1, maxY = -1;
+            let minX = fw, maxX = -1;
             const thr = 10;
 
             for (let y = 0; y < fh; y++) {
@@ -636,15 +987,13 @@ export class PixiRenderer {
                     const a = data[(y * fw + x) * 4 + 3];
                     if (a > thr) {
                         if (x < minX) minX = x;
-                        if (y < minY) minY = y;
                         if (x > maxX) maxX = x;
-                        if (y > maxY) maxY = y;
                     }
                 }
             }
 
             // frame vazio? penaliza
-            if (maxX < 0 || maxY < 0) {
+            if (maxX < 0) {
                 score -= 1.5;
                 continue;
             }

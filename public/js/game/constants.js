@@ -64,6 +64,7 @@ export const CFG = {
         speed: 110,
         r: 34,
         radius: 34,
+        contactRadiusMul: 1.55,
 
         // base HP (vai escalar por stage no Game)
         maxHp: 900,
