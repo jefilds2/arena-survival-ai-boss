@@ -312,3 +312,10 @@ PORT=3000</code></pre>
 <hr />
 
 <h2>🎉 Divirta-se jogando e contribuindo! 🎮</h2>
+
+## VÍDEO DO GAME
+
+https://github.com/user-attachments/assets/2444eaba-4e42-4775-8f6c-d721e56543ae
+
+
+
